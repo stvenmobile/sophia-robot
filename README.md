@@ -1,131 +1,188 @@
-# 🤖 Sophia — A Voice Assistant Robot for Kids  
+# 🤖 Sophia — A Voice Assistant Robot for Kids
 
-[![Jetson Orin Nano](https://img.shields.io/badge/Platform-Jetson%20Orin%20Nano-green)](#)  
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)  
-[![Status](https://img.shields.io/badge/Status-Prototype-orange)](#)  
+[![Jetson Orin Nano](https://img.shields.io/badge/Platform-Jetson%20Orin%20Nano-green)](#)
+[![Status](https://img.shields.io/badge/Status-Prototype-orange)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Sophia is a friendly **AI-powered voice companion for children**, designed to answer questions, tutor in various subjects, and tell engaging stories — all in a safe, local, and interactive way.  
-
-Built on the **Jetson Orin Nano Developer Kit (8 GB, 6-core)**, Sophia runs completely offline with a local LLM and speech pipeline, ensuring **privacy, low-latency, and safe interactions**.  
+Sophia is a friendly **AI voice companion for kids**, designed to answer questions, tutor, and tell stories — fully **local** on a Jetson Orin Nano for privacy and low latency.
 
 ---
 
-## 📖 Table of Contents
+## ✨ What works today (Phase 1 MVP)
 
-- [🤖 Sophia — A Voice Assistant Robot for Kids](#-sophia--a-voice-assistant-robot-for-kids)
-  - [📖 Table of Contents](#-table-of-contents)
-  - [✨ Features](#-features)
-  - [🛠 Tech Stack](#-tech-stack)
-  - [🚀 Roadmap](#-roadmap)
-  - [🔒 Safety \& Design Principles](#-safety--design-principles)
-  - [📦 Getting Started](#-getting-started)
-  - [🤔 Why “Sophia”?](#-why-sophia)
-
----
-
-## ✨ Features
-
-- **Voice interaction loop**  
-  - Wake-word detection (*"Hey Sophia"*)  
-  - Real-time speech-to-text (STT)  
-  - Local LLM for safe, age-appropriate responses  
-  - Text-to-speech (TTS) with a **female voice**  
-
-- **Kid-friendly tutoring**  
-  - Short explanations for homework questions  
-  - Mini-lessons in math, science, history, and more  
-  - Encouraging and positive responses  
-
-- **Storytelling & fun**  
-  - Tell bedtime stories and fun facts  
-  - Answer “why” questions with curiosity and patience  
-
-- **Robot-ready design**  
-  - *Stationary*: Desktop robot with expressive arms/gestures  
-  - *Mobile*: Expandable to ROS 2 robots with navigation and motion planning  
-
-- **Local-first**  
-  - No cloud dependency  
-  - Runs fully offline on Jetson Orin Nano  
+- **TTS**: Piper running in Docker with two voices (Amy default, Kristin optional)
+- **ASR**:
+  - `assistant.py` → OpenAI Whisper (baseline)
+  - `assistant_fw.py` → faster-whisper (GPU-optimized) with CLI flags
+- **Tiny RAG → Local LLM**: sends the transcript + small context to a local LLM endpoint (`LLAMA_URL`)
+- **Quick single-turn test**: `ask_once.py` (record → transcribe → LLM → speak)
+- **Wake word (optional)**: `wakeword_assistant.py` using Porcupine (“computer”) for hands-free
 
 ---
 
-## 🛠 Tech Stack
+## 🗂 Repo layout (relevant bits)
 
-**Hardware**  
-- NVIDIA Jetson Orin Nano Dev Kit (8 GB)  
-- USB microphone or WM8960 audio HAT  
-- Speaker (3.5mm or I²S DAC)  
+tools/
+assistant/
+assets/ # bip.wav, bip2.wav
+assistant.py # Whisper baseline
+assistant_fw.py # faster-whisper + CLI
+ask_once.py # one-shot Q→A test
+wakeword_assistant.py # wake-word ("computer") → Q→A loop
+docker/
+piper/
+Dockerfile # Piper build (with espeak-ng data fix)
 
-**Software**  
-- Wake-word → [OpenWakeWord](https://github.com/dscripka/openwakeword) / [Porcupine](https://picovoice.ai/platform/porcupine/)  
-- VAD → [Silero VAD](https://github.com/snakers4/silero-vad)  
-- STT → [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (CUDA optimized)  
-- LLM → [Ollama](https://ollama.com/) with *Phi-3-mini* or *Qwen2.5-3B* (quantized)  
-- TTS → [Piper](https://github.com/rhasspy/piper) for natural female voice  
-- Optional → ROS 2 (Humble/Jazzy) for motion, planning, and expressive gestures  
+pgsql
+Copy code
 
----
-
-## 🚀 Roadmap
-
-- [ ] **Phase 1 — Voice Loop MVP**  
-  - Wake-word + STT + LLM + TTS on Orin Nano  
-  - Test latency and conversation flow  
-
-- [ ] **Phase 2 — Tutoring Mode**  
-  - Subject-specific prompts and kid-friendly system messages  
-  - Content filters for safe conversation  
-
-- [ ] **Phase 3 — Expressive Robot**  
-  - Servo arms or LED expressions tied to dialogue  
-  - Multi-modal interaction  
-
-- [ ] **Phase 4 — Mobile Expansion (optional)**  
-  - ROS 2 base for navigation and movement  
-  - Dual-computer split: Orin Nano for voice, secondary SBC for mobility  
+> Tip: keep voices on the host at `~/.local/share/piper/voices/` and mount into the container.
 
 ---
 
-## 🔒 Safety & Design Principles
+## 🧱 Prerequisites
 
-- **Age-appropriate**: Short, simple, positive answers  
-- **Local-first**: No internet required  
-- **Filtered**: Avoid adult, violent, scary, or sensitive topics  
-- **Friendly**: Sophia speaks with warmth, patience, and encouragement  
+- Jetson Orin Nano with JetPack (CUDA/cuDNN installed)
+- Python 3.10+
+- ALSA utils on host: `sudo apt-get install -y alsa-utils`
+- Docker installed and working
+- A local LLM server reachable via `LLAMA_URL` (examples: llama.cpp server, an adapter around Ollama, etc.)
 
 ---
 
-## 📦 Getting Started
+## 🔊 Piper TTS (Dockerized)
 
-> Setup instructions coming soon once Phase 1 voice loop is stable.  
-
-**Prerequisites**  
-- JetPack 6.2 on Jetson Orin Nano  
-- Python 3.8+  
-- CUDA + cuDNN (installed with JetPack)  
-
-**Quick start (planned):**
+1) **Download voices + configs (host):**
 ```bash
-git clone https://github.com/YOURUSERNAME/sophia-robot.git
-cd sophia-robot
-pip3 install -r requirements.txt
-python3 sophia.py
+mkdir -p ~/.local/share/piper/voices
+# Amy
+curl -L -o ~/.local/share/piper/voices/en_US-amy-medium.onnx \
+  "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx"
+curl -L -o ~/.local/share/piper/voices/en_US-amy-medium.onnx.json \
+  "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json"
 
-Say: “Hey Sophia” and start talking!
-```
+# Kristin
+curl -L -o ~/.local/share/piper/voices/en_US-kristin-medium.onnx \
+  "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/kristin/medium/en_US-kristin-medium.onnx"
+curl -L -o ~/.local/share/piper/voices/en_US-kristin-medium.onnx.json \
+  "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/kristin/medium/en_US-kristin-medium.onnx.json"
+Build & run the container:
 
-## 🤔 Why “Sophia”?
+bash
+Copy code
+cd tools/assistant/docker/piper
+sudo docker build -t piper-tts-jetson .
+sudo docker rm -f piper-tts 2>/dev/null || true
+sudo docker run --name piper-tts -d \
+  -v ~/.local/share/piper/voices:/opt/voices:ro \
+  piper-tts-jetson sleep infinity
+sudo docker update --restart unless-stopped piper-tts
+The Dockerfile includes an espeak-ng data fix so phontab is found reliably.
 
-- Sophia comes from the Greek word for wisdom.
-- The name conveys guidance, warmth, and intelligence, fitting for a learning companion.
-- While “Sophia” has been used elsewhere in robotics, this project focuses on child-safe tutoring and companionship.
+Sanity check:
 
-📸 Demo (coming soon)
+bash
+Copy code
+sudo docker exec piper-tts bash -lc \
+  'echo "Hello from Amy." | /opt/piper/build/piper \
+     -m /opt/voices/en_US-amy-medium.onnx \
+     -c /opt/voices/en_US-amy-medium.onnx.json \
+     --espeak_data /usr/share/espeak-ng-data \
+     -f /dev/stdout' | aplay
+🗣️ Python environment
+bash
+Copy code
+cd tools/assistant
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+# baseline requirements (Whisper path)
+pip install -r requirements.txt
+# faster-whisper path (optional)
+pip install faster-whisper
+🚀 Run it
+One-shot Q→A test (fastest path):
 
-Screenshots, photos, and video demos will be added as development progresses.
+bash
+Copy code
+source tools/assistant/.venv/bin/activate
+python tools/assistant/ask_once.py 5
+Continuous assistant (Whisper baseline):
 
-📜 License
+bash
+Copy code
+python tools/assistant/assistant.py
+faster-whisper variant (recommended on GPU):
 
-This project is licensed under the MIT License
-.
+bash
+Copy code
+# CPU fallback (works now)
+python tools/assistant/assistant_fw.py --device cpu --compute-type int8
+
+# After enabling CUDA in CTranslate2 (see below)
+python tools/assistant/assistant_fw.py --device cuda --compute-type float16
+Wake-word loop (Porcupine’s “computer”):
+
+bash
+Copy code
+pip install pvporcupine pvrecorder
+python tools/assistant/wakeword_assistant.py
+# say: "computer" → ask a question → get a spoken answer
+⚡ Enable GPU for faster-whisper (CTranslate2 with CUDA)
+If assistant_fw.py complains about CPU-only CTranslate2, build it with CUDA:
+
+bash
+Copy code
+# deps
+sudo apt-get update
+sudo apt-get install -y build-essential cmake libopenblas-dev
+
+# in your venv
+source tools/assistant/.venv/bin/activate
+pip uninstall -y ctranslate2
+
+# build & install (compute 8.7 for Orin)
+cd ~
+git clone --depth 1 --branch v4.6.0 https://github.com/OpenNMT/CTranslate2.git
+cd CTranslate2
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DWITH_CUDA=ON -DCUDA_ARCH_LIST="8.7"
+cmake --build build -j"$(nproc)"
+pip install ./python
+
+# verify
+python - <<'PY'
+import ctranslate2; print(ctranslate2.get_build_info())
+PY
+# look for: "cuda": true
+🔌 LLM endpoint
+Set LLAMA_URL to your local model server. Examples:
+
+llama.cpp server exposing a /completion-style endpoint on http://127.0.0.1:8080
+
+a small adapter that translates to/from Ollama’s API
+
+You can export it before running:
+
+bash
+Copy code
+export LLAMA_URL="http://127.0.0.1:8080/completion"
+🧭 Roadmap (kid-friendly upgrades)
+Better wake-word: custom “Hey Sophia” (Porcupine custom / openWakeWord)
+
+VAD endpointing & barge-in: stop speaking if the child starts talking
+
+Tutor mode: style guide + guardrails for age-appropriate answers
+
+LED / face animations: visual cues for wake/listen/speak
+
+Memory (short-term): simple conversation state, reset on “new topic”
+
+🔒 Safety & design
+Local-first (no cloud) • Age-appropriate answers • Positive tone
+
+Avoid adult/violent/scary topics by design prompts and filtering
+
+Parents can review/update system prompts
+
+📄 License
+MIT — see LICENSE.
