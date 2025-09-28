@@ -1,23 +1,11 @@
-# Python
-__pycache__/
+# venvs & pycache
+**/.venv/
+**/__pycache__/
 *.pyc
-*.pyo
-*.pyd
-.env
-.venv/
-venv/
-build/
-dist/
-*.egg-info/
 
-# VS Code
+# audio scratch
+*.wav
+
+# editor junk
 .vscode/
-
-# Logs & artifacts
-*.log
-.DS_Store
-
-# Models/cache
-.whisper/
-models/
-cache/
+.idea/
