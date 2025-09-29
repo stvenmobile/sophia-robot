@@ -96,6 +96,8 @@ DEFAULT_SYSTEM_PROMPT = (
     "- 'be quiet' → set_quiet(on=true); 'hey sophia'/'i'm back' → set_quiet(on=false).\n"
     "- Choose MODE: 'casual' (1–3 short sentences) vs 'tutor' (short answer + a few facts).\n"
     "- If the user asks to be taught ('please teach me/tutor me/explain…'), prefer mode='tutor'.\n"
+    "Style: Reply in kid-friendly plain text. Do NOT include stage directions or formatting "
+    "like *smiles*, [laughs], parentheses-as-asides, markdown, or code fences.\n"
     "Return ONLY a single fenced JSON block: "
     "```json {\"speak\":\"...\",\"mode\":\"casual|tutor\",\"actions\":[...] } ```"
 )
@@ -127,6 +129,30 @@ def _extract_json_object(text: str) -> dict | None:
         except Exception:
             return None
     return None
+
+# =========================
+# Stage-direction scrub + natural years
+# =========================
+CODEFENCE_RX       = re.compile(r"```[\s\S]*?```", re.S)
+INLINE_CODE_RX     = re.compile(r"`([^`]{1,120})`")
+ASTERISK_EMPH_RX   = re.compile(r"\*([^\*\n]{1,120})\*")
+LEADING_STAGE_RX   = re.compile(r"^\s*(?:\*[^*]{1,60}\*|\[[^\]]{1,60}\]|\([^)]{1,60}\))\s*[,:\-–—]*\s*", re.U)
+MID_STAGE_WORDS_RX = re.compile(r"\s*(\[(smiles|laughs|shrugs|sighs|grins|chuckles|gasps|waves)\]|\((smiles|laughs|shrugs|sighs|grins|chuckles|gasps|waves)\))\s*", re.I)
+
+def prepare_tts_text(s: str) -> str:
+    if not s:
+        return s
+    s = CODEFENCE_RX.sub("", s)
+    s = INLINE_CODE_RX.sub(r"\1", s)
+    s = LEADING_STAGE_RX.sub("", s)
+    s = ASTERISK_EMPH_RX.sub(r"\1", s)
+    s = MID_STAGE_WORDS_RX.sub(" ", s)
+    # 1100–1999 → "14 92" style (fourteen ninety two, eighteen twelve, etc.)
+    s = re.sub(r"\b(1[1-9])(\d{2})\b", r"\1 \2", s)
+    # 1901–1909 → "19 oh 5"
+    s = re.sub(r"\b(19)0([1-9])\b", r"\1 oh \2", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
 
 # =========================
 # Reconfirmation lines
@@ -178,9 +204,10 @@ def say(text: str, voice: str = VOICE):
         _post_tts_ignore_until = time.monotonic() + (POST_TTS_IGNORE_MS / 1000.0)
 
 def say_and_log(text: str):
-    jlog("said", text=text)
+    clean = prepare_tts_text(text)
+    jlog("said", text=clean)
     try:
-        say(text)
+        say(clean)
     except Exception as e:
         jlog("error", where="say", text=str(e))
 
@@ -304,7 +331,6 @@ def normalize_actions(actions):
         actions = [actions]
 
     for i, a in enumerate(actions):
-        # Dict is OK
         if isinstance(a, dict):
             name = str(a.get("name", "")).strip()
             args = a.get("args") if isinstance(a.get("args"), dict) else {}
@@ -314,7 +340,6 @@ def normalize_actions(actions):
                 jlog("router_action_skip", idx=i, reason="empty-name", value=a)
             continue
 
-        # String: could be JSON or bare tool name
         if isinstance(a, str):
             s = a.strip()
             if s.startswith("{") and s.endswith("}"):
@@ -331,7 +356,6 @@ def normalize_actions(actions):
                 out.append({"name": low, "args": {}})
                 continue
 
-        # Anything else: skip
         jlog("router_action_skip", idx=i, reason="unsupported-type", value=a)
     return out
 
@@ -483,7 +507,6 @@ def main():
                                 say_and_log(ctx["active_skill"].start("", ctx))
                                 ctx["expecting_reconfirm"] = False
                                 continue
-                            # Try direct name
                             try:
                                 nm = NewPersonSkill().extract_name(text)
                             except Exception:
@@ -573,7 +596,7 @@ def main():
                                 reply = json.dumps(reply)[:600]
                             except Exception:
                                 reply = "Okay."
-                        reply = reply.strip() or "Okay."
+                        reply = (reply or "Okay.").strip()
 
                         chosen_mode = ctx.get("forced_mode") or plan.get("mode") or decide_mode(text_for_llm, "casual")
                         ctx["forced_mode"] = None
