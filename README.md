@@ -37,7 +37,7 @@ tools/
 ```
 
 
-> Tip: keep voices on the host at `~/.local/share/piper/voices/` and mount into the container.
+If assets/bip*.wav are missing, see “Beep assets” below.
 
 ---
 
