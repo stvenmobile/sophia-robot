@@ -37,8 +37,6 @@ tools/
 ```
 
 
-If assets/bip*.wav are missing, see “Beep assets” below.
-
 ---
 
 ## 🧱 Prerequisites
